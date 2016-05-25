@@ -1,32 +1,10 @@
 #!/bin/sh
 set -e
-#
-# This script is meant for quick & easy install via:
-#   'curl -sSL https://get.docker.com/ | sh'
-# or:
-#   'wget -qO- https://get.docker.com/ | sh'
-#
-# For test builds (ie. release candidates):
-#   'curl -fsSL https://test.docker.com/ | sh'
-# or:
-#   'wget -qO- https://test.docker.com/ | sh'
-#
-# For experimental builds:
-#   'curl -fsSL https://experimental.docker.com/ | sh'
-# or:
-#   'wget -qO- https://experimental.docker.com/ | sh'
-#
-# Docker Maintainers:
-#   To update this script on https://get.docker.com,
-#   use hack/release.sh during a normal release,
-#   or the following one-liner for script hotfixes:
-#     aws s3 cp --acl public-read hack/install.sh s3://get.docker.com/index
-#
 
 url="https://get.docker.com/"
 apt_url="https://apt.dockerproject.org"
 yum_url="https://yum.dockerproject.org"
-gpg_fingerprint="58118E89F3A912897C070ADBF76221572C52609D"
+gpg_fingerprint="0xee6d536cf7dc86e2d7d56f59a178ac6c6238f52e"
 
 key_servers="
 ha.pool.sks-keyservers.net
@@ -214,11 +192,6 @@ do_install() {
 	# check to see which repo they are trying to install from
 	if [ -z "$repo" ]; then
 		repo='main'
-		if [ "https://test.docker.com/" = "$url" ]; then
-			repo='testing'
-		elif [ "https://experimental.docker.com/" = "$url" ]; then
-			repo='experimental'
-		fi
 	fi
 
 	# perform some very rudimentary platform detection
@@ -300,14 +273,6 @@ do_install() {
 
 	# Run setup for each distro accordingly
 	case "$lsb_dist" in
-		amzn)
-			(
-			set -x
-			$sh_c 'sleep 3; yum -y -q install docker'
-			)
-			echo_docker_as_nonroot
-			exit 0
-			;;
 
 		'opensuse project'|opensuse)
 			echo 'Going to perform the following operations:'
@@ -435,7 +400,7 @@ do_install() {
 			exit 0
 			;;
 
-		fedora|centos|oraclelinux)
+		fedora|centos)
 			$sh_c "cat >/etc/yum.repos.d/docker-${repo}.repo" <<-EOF
 			[docker-${repo}-repo]
 			name=Docker ${repo} Repository
@@ -456,33 +421,6 @@ do_install() {
 				)
 			fi
 			echo_docker_as_nonroot
-			exit 0
-			;;
-		gentoo)
-			if [ "$url" = "https://test.docker.com/" ]; then
-				# intentionally mixed spaces and tabs here -- tabs are stripped by "<<-'EOF'", spaces are kept in the output
-				cat >&2 <<-'EOF'
-
-				  You appear to be trying to install the latest nightly build in Gentoo.'
-				  The portage tree should contain the latest stable release of Docker, but'
-				  if you want something more recent, you can always use the live ebuild'
-				  provided in the "docker" overlay available via layman.  For more'
-				  instructions, please see the following URL:'
-
-				    https://github.com/tianon/docker-overlay#using-this-overlay'
-
-				  After adding the "docker" overlay, you should be able to:'
-
-				    emerge -av =app-emulation/docker-9999'
-
-				EOF
-				exit 1
-			fi
-
-			(
-				set -x
-				$sh_c 'sleep 3; emerge app-emulation/docker'
-			)
 			exit 0
 			;;
 	esac
