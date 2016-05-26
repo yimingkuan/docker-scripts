@@ -352,7 +352,7 @@ do_install() {
   		;;
   esac
   
-	cat Not supported!
+	echo "Not supported!"
 	
 	exit 1
 }
