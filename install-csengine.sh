@@ -1,6 +1,3 @@
-#OS_NAME=$(cat /etc/*release | grep "^NAME" | cut -d'"' -f2)
-#OS_VERSION=$(cat /etc/*release | grep "^VERSION_ID" | cut -d'"' -f2)
-
 set -e
 
 url="https://get.docker.com/"
