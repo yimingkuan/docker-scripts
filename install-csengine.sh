@@ -352,12 +352,17 @@ do_install() {
   		;;
   esac
   
-  cat >&2 <<-'EOF'
-  
-    Not supported yet!
-  
-  EOF
-  exit 1
+	cat >&2 <<-'EOF'
+	
+	  Either your platform is not easily detectable, is not supported by this
+	  installer script (yet - PRs welcome! [hack/install.sh]), or does not yet have
+	  a package for Docker.  Please visit the following URL for more detailed
+	  installation instructions:
+	
+	    https://docs.docker.com/engine/installation/
+	
+	EOF
+	exit 1
 }
 
 do_install
