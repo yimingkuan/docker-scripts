@@ -14,6 +14,10 @@ pgp.mit.edu
 keyserver.ubuntu.com
 "
 
+command_exists() {
+	command -v "$@" > /dev/null 2>&1
+}
+
 echo_docker_as_nonroot() {
 	if command_exists docker && [ -e /var/run/docker.sock ]; then
 		(
