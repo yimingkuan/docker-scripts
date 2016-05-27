@@ -305,19 +305,15 @@ do_install() {
 			;;
 	
 		centos)
-			$sh_c "yum install -y yum-utils"
-			$sh_c "yum-config-manager --add-repo ${yum_url}/repo/main/${lsb_dist}/${dist_version}"
-			#$sh_c "cat >/etc/yum.repos.d/docker-main.repo" <<-EOF
-			#[docker-main-repo]
-			#name=docker main repository - ${lsb_dist}/${dist_version}
-			#baseurl=${yum_url}/repo/main/${lsb_dist}/${dist_version}
-			#enabled=1
-			#gpgcheck=1
-			#gpgkey=${yum_url}/gpg
-			#EOF
+			$sh_c "cat >/etc/yum.repos.d/docker-main.repo" <<-EOF
+			[docker-main-repo]
+			name=docker main repository - ${lsb_dist}/${dist_version}
+			baseurl=${yum_url}/repo/main/${lsb_dist}/${dist_version}
+			enabled=1
+			gpgcheck=1
+			gpgkey=${yum_url}/gpg
+			EOF
 			set -x
-			#rpm_import_repository_key
-			#$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --recv-keys ${gpg_fingerprint}" && break
 			$sh_c 'sleep 3; yum -y -q install docker-engine'
 			echo_docker_as_nonroot
 			exit 0
