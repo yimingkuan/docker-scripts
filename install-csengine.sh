@@ -1,3 +1,5 @@
+# Ubuntu, CentOS, Red Hat support only, so far
+
 set -e
 
 url="https://get.docker.com/"
@@ -5,11 +7,7 @@ apt_url="https://packages.docker.com/1.11/apt"
 yum_url="https://packages.docker.com/1.11/yum"
 gpg_fingerprint="0xee6d536cf7dc86e2d7d56f59a178ac6c6238f52e"
 
-key_servers="
-ha.pool.sks-keyservers.net
-pgp.mit.edu
-keyserver.ubuntu.com
-"
+key_server="ha.pool.sks-keyservers.net"
 
 command_exists() {
 	command -v "$@" > /dev/null 2>&1
@@ -30,11 +28,22 @@ echo_docker_as_nonroot() {
 	If you would like to use Docker as a non-root user, you should now consider
 	adding your user to the "docker" group with something like:
 
-	  sudo usermod -aG docker $your_user
+		sudo usermod -aG docker $your_user
 
 	Remember that you will have to log out and back in for this to take effect!
 
 	EOF
+}
+
+rpm_import_repository_key() {
+	local key=$1; shift
+	local tmpdir=$(mktemp -d)
+	chmod 600 "$tmpdir"
+	gpg --homedir "$tmpdir" --keyserver "$key_server" --recv-keys "$key"
+	gpg --homedir "$tmpdir" -k "$key" >/dev/null
+	gpg --homedir "$tmpdir" --export --armor "$key" > "$tmpdir"/repo.key
+	rpm --import "$tmpdir"/repo.key
+	rm -rf "$tmpdir"
 }
 
 do_install() {
@@ -123,216 +132,207 @@ do_install() {
 		curl='busybox wget -qO-'
 	fi
 
-  lsb_dist=''
-  dist_version=''
-  if command_exists lsb_release; then
-  	lsb_dist="$(lsb_release -si)"
-  fi
-  if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
-  	lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
-  fi
-  if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
-  	lsb_dist='debian'
-  fi
-  if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
-  	lsb_dist='fedora'
-  fi
-  if [ -z "$lsb_dist" ] && [ -r /etc/oracle-release ]; then
-  	lsb_dist='oracleserver'
-  fi
-  if [ -z "$lsb_dist" ]; then
-  	if [ -r /etc/centos-release ] || [ -r /etc/redhat-release ]; then
-  		lsb_dist='centos'
-  	fi
-  fi
-  if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
-  	lsb_dist="$(. /etc/os-release && echo "$ID")"
-  fi
-  
-  lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
-  
-  case "$lsb_dist" in
-  
-  	ubuntu)
-  		if command_exists lsb_release; then
-  			dist_version="$(lsb_release --codename | cut -f2)"
-  		fi
-  		if [ -z "$dist_version" ] && [ -r /etc/lsb-release ]; then
-  			dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
-  		fi
-  	;;
-  
-  	debian)
-  		dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
-  		case "$dist_version" in
-  			8)
-  				dist_version="jessie"
-  			;;
-  			7)
-  				dist_version="wheezy"
-  			;;
-  		esac
-  	;;
-  
-  	fedora|centos)
-  		dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//' | sed 's/Server*//')"
-  	;;
-  
-  	*)
-  		if command_exists lsb_release; then
-  			dist_version="$(lsb_release --codename | cut -f2)"
-  		fi
-  		if [ -z "$dist_version" ] && [ -r /etc/os-release ]; then
-  			dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
-  		fi
-  	;;
-  esac
-  
-  curl=''
-  	if command_exists curl; then
-  		curl='curl -sSL'
-  	elif command_exists wget; then
-  		curl='wget -qO-'
-  	elif command_exists busybox && busybox --list-modules | grep -q wget; then
-  		curl='busybox wget -qO-'
-  	fi
-  
-  case "$lsb_dist" in
-  
-  	'opensuse project'|opensuse)
-  		echo 'Going to perform the following operations:'
-  		echo '  * install Docker'
-  		$sh_c 'echo "Press CTRL-C to abort"; sleep 3'
-  
-  		(
-  			set -x
-  			zypper -n install docker
-  		)
-  		echo_docker_as_nonroot
-  		exit 0
-  		;;
-  	
-  	'suse linux'|sle[sd])
-  		echo 'Going to perform the following operations:'
-  		echo '  * add the "Containers" module'
-  		echo '  * install Docker using packages supported by SUSE'
-  		$sh_c 'echo "Press CTRL-C to abort"; sleep 3'
-  
-  		# Add the containers module
-  		# Note well-1: the SLE machine must already be registered against SUSE Customer Center
-  		# Note well-2: the `-r ""` is required to workaround a known issue of SUSEConnect
-  		(
-  			set -x
-  			SUSEConnect -p sle-module-containers/12/x86_64 -r ""
-  			zypper -n install docker
-  		)
-  		echo_docker_as_nonroot
-  		exit 0
-  		;;
-  
-  	ubuntu|debian)
-  		export DEBIAN_FRONTEND=noninteractive
-  
-  		did_apt_get_update=
-  		apt_get_update() {
-  			if [ -z "$did_apt_get_update" ]; then
-  				( set -x; $sh_c 'sleep 3; apt-get update' )
-  				did_apt_get_update=1
-  			fi
-  		}
-  
-  		# aufs is preferred over devicemapper; try to ensure the driver is available.
-  		if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
-  			if uname -r | grep -q -- '-generic' && dpkg -l 'linux-image-*-generic' | grep -qE '^ii|^hi' 2>/dev/null; then
-  				kern_extras="linux-image-extra-$(uname -r) linux-image-extra-virtual"
-  
-  				apt_get_update
-  				( set -x; $sh_c 'sleep 3; apt-get install -y -q '"$kern_extras" ) || true
-  
-  				if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
-  					echo >&2 'Warning: tried to install '"$kern_extras"' (for AUFS)'
-  					echo >&2 ' but we still have no AUFS.  Docker may not work. Proceeding anyways!'
-  					( set -x; sleep 10 )
-  				fi
-  			else
-  				echo >&2 'Warning: current kernel is not supported by the linux-image-extra-virtual'
-  				echo >&2 ' package.  We have no AUFS support.  Consider installing the packages'
-  				echo >&2 ' linux-image-virtual kernel and linux-image-extra-virtual for AUFS support.'
-  				( set -x; sleep 10 )
-  			fi
-  		fi
-  
-  		# install apparmor utils if they're missing and apparmor is enabled in the kernel
-  		# otherwise Docker will fail to start
-  		if [ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = 'Y' ]; then
-  			if command -v apparmor_parser >/dev/null 2>&1; then
-  				echo 'apparmor is enabled in the kernel and apparmor utils were already installed'
-  			else
-  				echo 'apparmor is enabled in the kernel, but apparmor_parser missing'
-  				apt_get_update
-  				( set -x; $sh_c 'sleep 3; apt-get install -y -q apparmor' )
-  			fi
-  		fi
-  
-  		if [ ! -e /usr/lib/apt/methods/https ]; then
-  			apt_get_update
-  			( set -x; $sh_c 'sleep 3; apt-get install -y -q apt-transport-https ca-certificates' )
-  		fi
-  		if [ -z "$curl" ]; then
-  			apt_get_update
-  			( set -x; $sh_c 'sleep 3; apt-get install -y -q curl ca-certificates' )
-  			curl='curl -sSL'
-  		fi
-  		(
-  		set -x
-  		for key_server in $key_servers ; do
-  			$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --recv-keys ${gpg_fingerprint}" && break
-  		done
-  		$sh_c "apt-key adv -k ${gpg_fingerprint} >/dev/null"
-  		$sh_c "mkdir -p /etc/apt/sources.list.d"
-  		$sh_c "echo deb ${apt_url}/repo ${lsb_dist}-${dist_version} main > /etc/apt/sources.list.d/docker.list"
-  		$sh_c 'sleep 3; apt-get update; apt-get install -y -q docker-engine'
-  		)
-  		echo_docker_as_nonroot
-  		exit 0
-  		;;
-  
-  	fedora|centos)
-  	  $sh_c "yum install -y yum-utils"
-  	  $sh_c "yum-config-manager --add-repo ${yum_url}/repo/main/${lsb_dist}/${dist_version}"
-  		#$sh_c "cat >/etc/yum.repos.d/docker-main.repo" <<-EOF
-  		#[docker-main-repo]
-  		#name=docker main repository - ${lsb_dist}/${dist_version}
-  		#baseurl=${yum_url}/repo/main/${lsb_dist}/${dist_version}
-  		#enabled=1
-  		#gpgcheck=1
-  		#gpgkey=${yum_url}/gpg
-  		#EOF
-  		if [ "$lsb_dist" = "fedora" ] && [ "$dist_version" -ge "22" ]; then
-  			(
-  				set -x
-  				$sh_c 'sleep 3; dnf -y -q install docker-engine'
-  			)
-  		else
-  			(
-  				set -x
-  				$sh_c 'sleep 3; yum -y -q install docker-engine'
-  			)
-  		fi
-  		echo_docker_as_nonroot
-  		exit 0
-  		;;
-  esac
+	lsb_dist=''
+	dist_version=''
+	if command_exists lsb_release; then
+		lsb_dist="$(lsb_release -si)"
+	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/lsb-release ]; then
+		lsb_dist="$(. /etc/lsb-release && echo "$DISTRIB_ID")"
+	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/debian_version ]; then
+		lsb_dist='debian'
+	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
+		lsb_dist='fedora'
+	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/oracle-release ]; then
+		lsb_dist='oracleserver'
+	fi
+	if [ -z "$lsb_dist" ]; then
+		if [ -r /etc/centos-release ] || [ -r /etc/redhat-release ]; then
+			lsb_dist='centos'
+		fi
+	fi
+	if [ -z "$lsb_dist" ] && [ -r /etc/os-release ]; then
+		lsb_dist="$(. /etc/os-release && echo "$ID")"
+	fi
+	
+	lsb_dist="$(echo "$lsb_dist" | tr '[:upper:]' '[:lower:]')"
+	
+	case "$lsb_dist" in
+	
+		ubuntu)
+			if command_exists lsb_release; then
+				dist_version="$(lsb_release --codename | cut -f2)"
+			fi
+			if [ -z "$dist_version" ] && [ -r /etc/lsb-release ]; then
+				dist_version="$(. /etc/lsb-release && echo "$DISTRIB_CODENAME")"
+			fi
+		;;
+	
+		debian)
+			dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
+			case "$dist_version" in
+				8)
+					dist_version="jessie"
+				;;
+				7)
+					dist_version="wheezy"
+				;;
+			esac
+		;;
+	
+		centos)
+			dist_version="$(rpm -q --whatprovides redhat-release --queryformat "%{VERSION}\n" | sed 's/\/.*//' | sed 's/\..*//' | sed 's/Server*//')"
+		;;
+	
+		*)
+			if command_exists lsb_release; then
+				dist_version="$(lsb_release --codename | cut -f2)"
+			fi
+			if [ -z "$dist_version" ] && [ -r /etc/os-release ]; then
+				dist_version="$(. /etc/os-release && echo "$VERSION_ID")"
+			fi
+		;;
+	esac
+	
+	curl=''
+		if command_exists curl; then
+			curl='curl -sSL'
+		elif command_exists wget; then
+			curl='wget -qO-'
+		elif command_exists busybox && busybox --list-modules | grep -q wget; then
+			curl='busybox wget -qO-'
+		fi
+	
+	case "$lsb_dist" in
+	
+		'opensuse project'|opensuse)
+			echo 'Going to perform the following operations:'
+			echo '	* install Docker'
+			$sh_c 'echo "Press CTRL-C to abort"; sleep 3'
+	
+			(
+				set -x
+				zypper -n install docker
+			)
+			echo_docker_as_nonroot
+			exit 0
+			;;
+		
+		'suse linux'|sle[sd])
+			echo 'Going to perform the following operations:'
+			echo '	* add the "Containers" module'
+			echo '	* install Docker using packages supported by SUSE'
+			$sh_c 'echo "Press CTRL-C to abort"; sleep 3'
+	
+			# Add the containers module
+			# Note well-1: the SLE machine must already be registered against SUSE Customer Center
+			# Note well-2: the `-r ""` is required to workaround a known issue of SUSEConnect
+			(
+				set -x
+				SUSEConnect -p sle-module-containers/12/x86_64 -r ""
+				zypper -n install docker
+			)
+			echo_docker_as_nonroot
+			exit 0
+			;;
+	
+		ubuntu|debian)
+			export DEBIAN_FRONTEND=noninteractive
+	
+			did_apt_get_update=
+			apt_get_update() {
+				if [ -z "$did_apt_get_update" ]; then
+					( set -x; $sh_c 'sleep 3; apt-get update' )
+					did_apt_get_update=1
+				fi
+			}
+	
+			# aufs is preferred over devicemapper; try to ensure the driver is available.
+			if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
+				if uname -r | grep -q -- '-generic' && dpkg -l 'linux-image-*-generic' | grep -qE '^ii|^hi' 2>/dev/null; then
+					kern_extras="linux-image-extra-$(uname -r) linux-image-extra-virtual"
+	
+					apt_get_update
+					( set -x; $sh_c 'sleep 3; apt-get install -y -q '"$kern_extras" ) || true
+	
+					if ! grep -q aufs /proc/filesystems && ! $sh_c 'modprobe aufs'; then
+						echo >&2 'Warning: tried to install '"$kern_extras"' (for AUFS)'
+						echo >&2 ' but we still have no AUFS.	Docker may not work. Proceeding anyways!'
+						( set -x; sleep 10 )
+					fi
+				else
+					echo >&2 'Warning: current kernel is not supported by the linux-image-extra-virtual'
+					echo >&2 ' package.	We have no AUFS support.	Consider installing the packages'
+					echo >&2 ' linux-image-virtual kernel and linux-image-extra-virtual for AUFS support.'
+					( set -x; sleep 10 )
+				fi
+			fi
+	
+			# install apparmor utils if they're missing and apparmor is enabled in the kernel
+			# otherwise Docker will fail to start
+			if [ "$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null)" = 'Y' ]; then
+				if command -v apparmor_parser >/dev/null 2>&1; then
+					echo 'apparmor is enabled in the kernel and apparmor utils were already installed'
+				else
+					echo 'apparmor is enabled in the kernel, but apparmor_parser missing'
+					apt_get_update
+					( set -x; $sh_c 'sleep 3; apt-get install -y -q apparmor' )
+				fi
+			fi
+	
+			if [ ! -e /usr/lib/apt/methods/https ]; then
+				apt_get_update
+				( set -x; $sh_c 'sleep 3; apt-get install -y -q apt-transport-https ca-certificates' )
+			fi
+			if [ -z "$curl" ]; then
+				apt_get_update
+				( set -x; $sh_c 'sleep 3; apt-get install -y -q curl ca-certificates' )
+				curl='curl -sSL'
+			fi
+			(
+			set -x
+			$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --recv-keys ${gpg_fingerprint}"
+			$sh_c "apt-key adv -k ${gpg_fingerprint} >/dev/null"
+			$sh_c "mkdir -p /etc/apt/sources.list.d"
+			$sh_c "echo deb ${apt_url}/repo ${lsb_dist}-${dist_version} main > /etc/apt/sources.list.d/docker.list"
+			$sh_c 'sleep 3; apt-get update; apt-get install -y -q docker-engine'
+			)
+			echo_docker_as_nonroot
+			exit 0
+			;;
+	
+		centos)
+			$sh_c "yum install -y yum-utils"
+			$sh_c "yum-config-manager --add-repo ${yum_url}/repo/main/${lsb_dist}/${dist_version}"
+			#$sh_c "cat >/etc/yum.repos.d/docker-main.repo" <<-EOF
+			#[docker-main-repo]
+			#name=docker main repository - ${lsb_dist}/${dist_version}
+			#baseurl=${yum_url}/repo/main/${lsb_dist}/${dist_version}
+			#enabled=1
+			#gpgcheck=1
+			#gpgkey=${yum_url}/gpg
+			#EOF
+			set -x
+			rpm_import_repository_key
+			#$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --recv-keys ${gpg_fingerprint}" && break
+			$sh_c 'sleep 3; yum -y -q install docker-engine'
+			echo_docker_as_nonroot
+			exit 0
+			;;
+	esac
 
 	# intentionally mixed spaces and tabs here -- tabs are stripped by "<<-'EOF'", spaces are kept in the output
 	cat >&2 <<-'EOF'
 
-	  Either your platform is not easily detectable, is not supported by this
-	  installer script (yet - PRs welcome! [hack/install.sh]), or does not yet have
-	  a package for Docker.  Please visit the following URL for more detailed
-	  installation instructions:
+		Either your platform is not easily detectable, is not supported by this
+		installer script (yet - PRs welcome! [hack/install.sh]), or does not yet have
+		a package for Docker.	Please visit the following URL for more detailed
+		installation instructions:
 
-	    https://docs.docker.com/engine/installation/
+			https://docs.docker.com/engine/installation/
 
 	EOF
 	exit 1
