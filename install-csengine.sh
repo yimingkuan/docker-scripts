@@ -316,7 +316,7 @@ do_install() {
 			#gpgkey=${yum_url}/gpg
 			#EOF
 			set -x
-			rpm_import_repository_key
+			#rpm_import_repository_key
 			#$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --recv-keys ${gpg_fingerprint}" && break
 			$sh_c 'sleep 3; yum -y -q install docker-engine'
 			echo_docker_as_nonroot
