@@ -209,10 +209,10 @@ do_install() {
 	case "$lsb_dist" in
 		
 		'suse linux'|sle[sd])
-			$sh_c zypper ref
-			$sh_c zypper ar -t YUM ${yum_url}/repo/main/opensuse/12.3 docker-${version}
-			$sh_c rpm --import "${key_server}${gpg_fingerprint}"
-			$sh_c zypper install docker-engine
+			$sh_c 'zypper ref'
+			$sh_c 'zypper ar -t YUM ${yum_url}/repo/main/opensuse/12.3 docker-${version}'
+			$sh_c 'rpm --import "${key_server}${gpg_fingerprint}"'
+			$sh_c 'zypper install docker-engine'
 			echo_docker_as_nonroot
 			exit 0
 			;;
@@ -272,11 +272,11 @@ do_install() {
 			fi
 			(
 			set -x
-			$sh_c "$curl '${key_server}${gpg_fingerprint}' | apt-key add --import"
+			$sh_c '$curl "${key_server}${gpg_fingerprint}" | apt-key add --import'
 			#$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --recv-keys ${gpg_fingerprint}"
 			#$sh_c "apt-key adv -k ${gpg_fingerprint} >/dev/null"
-			$sh_c "mkdir -p /etc/apt/sources.list.d"
-			$sh_c "echo deb ${apt_url}/repo ${lsb_dist}-${dist_version} main > /etc/apt/sources.list.d/docker.list"
+			$sh_c 'mkdir -p /etc/apt/sources.list.d'
+			$sh_c 'echo deb ${apt_url}/repo ${lsb_dist}-${dist_version} main > /etc/apt/sources.list.d/docker.list'
 			$sh_c 'sleep 3; apt-get update; apt-get install -y -q docker-engine'
 			)
 			echo_docker_as_nonroot
@@ -284,9 +284,9 @@ do_install() {
 			;;
 	
 		centos)
-			$sh_c rpm --import "${key_server}${gpg_fingerprint}"
-			$sh_c yum -y -q install yum-utils
-			$sh_c yum-config-manager --add-repo ${yum_url}/repo/main/${lsb_dist}/${dist_version}
+			$sh_c 'rpm --import "${key_server}${gpg_fingerprint}"'
+			$sh_c 'yum -y -q install yum-utils'
+			$sh_c 'yum-config-manager --add-repo ${yum_url}/repo/main/${lsb_dist}/${dist_version}'
 			#$sh_c "cat >/etc/yum.repos.d/docker-main.repo" <<-EOF
 			#[docker-main-repo]
 			#name=docker main repository - ${lsb_dist}/${dist_version}
