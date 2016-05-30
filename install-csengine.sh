@@ -286,7 +286,7 @@ do_install() {
 		centos)
 			echo ${key_server}
 			echo ${gpg_fingerprint}
-			echo ${key_server}${gpg_fingerprint}
+			echo "${key_server}${gpg_fingerprint}"
 			$sh_c "rpm --import '${key_server}${gpg_fingerprint}'"
 			$sh_c 'yum -y -q install yum-utils'
 			$sh_c "yum-config-manager --add-repo ${yum_url}/repo/main/${lsb_dist}/${dist_version}"
