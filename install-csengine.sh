@@ -46,6 +46,14 @@ rpm_import_repository_key() {
 	rm -rf "$tmpdir"
 }
 
+semverParse() {
+	major="${1%%.*}"
+	minor="${1#$major.}"
+	minor="${minor%%.*}"
+	patch="${1#$major.$minor.}"
+	patch="${patch%%[-.]*}"
+}
+
 do_install() {
 	case "$(uname -m)" in
 		*64)
