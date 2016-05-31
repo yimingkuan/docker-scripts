@@ -154,9 +154,6 @@ do_install() {
 	if [ -z "$lsb_dist" ] && [ -r /etc/fedora-release ]; then
 		lsb_dist='fedora'
 	fi
-	if [ -z "$lsb_dist" ] && [ -r /etc/oracle-release ]; then
-		lsb_dist='oracleserver'
-	fi
 	if [ -z "$lsb_dist" ]; then
 		if [ -r /etc/centos-release ] || [ -r /etc/redhat-release ]; then
 			lsb_dist='centos'
