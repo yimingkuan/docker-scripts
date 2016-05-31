@@ -70,7 +70,7 @@ do_install() {
 	if command_exists docker; then
 		version="$(docker -v | awk -F '[ ,]+' '{ print $3 }')"
 		MAJOR_W=1
-		MINOR_W=10
+		MINOR_W=11
 
 		semverParse $version
 
