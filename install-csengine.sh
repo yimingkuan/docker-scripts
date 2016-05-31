@@ -306,11 +306,10 @@ do_install() {
 	cat >&2 <<-'EOF'
 
 		Either your platform is not easily detectable, is not supported by this
-		installer script (yet - PRs welcome! [hack/install.sh]), or does not yet have
-		a package for Docker.	Please visit the following URL for more detailed
-		installation instructions:
-
-			https://docs.docker.com/engine/installation/
+		installer script, or does not yet have a package for Docker. Please visit
+		the following URL for more detailed installation instructions:
+		
+		https://docs.docker.com/docker-trusted-registry/cs-engine/install/
 
 	EOF
 	exit 1
