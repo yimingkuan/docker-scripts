@@ -277,7 +277,7 @@ do_install() {
 			fi
 			(
 			set -x
-			$sh_c '$curl "${key_server}${gpg_fingerprint}" | apt-key add --import'
+			$sh_c "$curl ${key_server}${gpg_fingerprint} | apt-key add --import"
 			#$sh_c "apt-key adv --keyserver hkp://${key_server}:80 --recv-keys ${gpg_fingerprint}"
 			#$sh_c "apt-key adv -k ${gpg_fingerprint} >/dev/null"
 			$sh_c 'mkdir -p /etc/apt/sources.list.d'
