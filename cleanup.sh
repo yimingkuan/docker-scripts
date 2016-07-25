@@ -3,8 +3,8 @@
 
 set -e
 
-volume_name = "*"
-container_name = "*"
+volume_name = "\*"
+container_name = "\*"
 
 if [ "$2" != "" ]; then
 	$volume_name = "$2"
