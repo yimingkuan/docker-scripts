@@ -1,6 +1,8 @@
 #Deletes all stopped containers and dangling volumes matching the parameters, wildcards supported
 #usage: ./cleanup.sh [container] [volume]
 
+set -e
+
 volume_name = "*"
 container_name = "*"
 
