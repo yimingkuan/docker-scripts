@@ -14,6 +14,10 @@ if [ "$1" != "" ]; then
 	$container_name = "$1"
 fi
 
-docker ps -a | grep 'Exited' | grep $container_name| awk '{print $1}' | xargs --no-run-if-empty docker rm
+cleanup () {
+	docker ps -a | grep 'Exited' | grep $container_name| awk '{print $1}' | xargs --no-run-if-empty docker rm
+	
+	docker volume ls -qf dangling=true | grep $volume_name | docker volume rm $(docker volume ls -qf dangling=true)
+}
 
-docker volume ls -qf dangling=true | grep $volume_name | docker volume rm $(docker volume ls -qf dangling=true)
+cleanup
