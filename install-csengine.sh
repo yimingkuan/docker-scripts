@@ -1,8 +1,12 @@
-# Ubuntu, CentOS, Red Hat support only, so far. SUSE is untested
+# Ubuntu, CentOS, Red Hat, SUSE support
+# Usage: ./install-csengine.sh [version]
 
 set -e
 
 version="1.11"
+if [ "$1" != "" ]; then
+	version="$1"
+fi
 apt_url="https://packages.docker.com/${version}/apt"
 yum_url="https://packages.docker.com/${version}/yum"
 gpg_fingerprint="0xee6d536cf7dc86e2d7d56f59a178ac6c6238f52e"
