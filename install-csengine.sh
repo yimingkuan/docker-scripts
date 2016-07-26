@@ -28,14 +28,10 @@ echo_docker_as_nonroot() {
 	[ "$user" != 'root' ] && your_user="$user"
 	# intentionally mixed spaces and tabs here -- tabs are stripped by "<<-EOF", spaces are kept in the output
 	cat <<-EOF
-
 	If you would like to use Docker as a non-root user, you should now consider
 	adding your user to the "docker" group with something like:
-
 		sudo usermod -aG docker $your_user
-
 	Remember that you will have to log out and back in for this to take effect!
-
 	EOF
 }
 
@@ -76,24 +72,22 @@ do_install() {
 		MAJOR_W=1
 		MINOR_W=11
 
-		semverParse $version
+		semverParse "$version"
 
 		shouldWarn=0
-		if [ $major -lt $MAJOR_W ]; then
+		if [ "$major" -lt "$MAJOR_W" ]; then
 			shouldWarn=1
 		fi
 
-		if [ $major -le $MAJOR_W ] && [ $minor -lt $MINOR_W ]; then
+		if [ "$major" -le "$MAJOR_W" ] && [ "$minor" -lt "$MINOR_W" ]; then
 			shouldWarn=1
 		fi
 
 		cat >&2 <<-'EOF'
 			Warning: the "docker" command appears to already exist on this system.
-
 			If you already have Docker installed, this script can cause trouble, which is
 			why we're displaying this warning and provide the opportunity to cancel the
 			installation.
-
 			If you installed the current Docker package using this script and are using it
 		EOF
 
@@ -101,7 +95,6 @@ do_install() {
 			cat >&2 <<-'EOF'
 			again to update Docker, we urge you to migrate your image store before upgrading
 			to v1.10+.
-
 			You can find instructions for this here:
 			https://github.com/docker/docker/wiki/Engine-v1.10.0-content-addressability-migration
 			EOF
@@ -112,7 +105,6 @@ do_install() {
 		fi
 
 		cat >&2 <<-'EOF'
-
 			You may press Ctrl+C now to abort this script.
 		EOF
 		( set -x; sleep 20 )
@@ -181,7 +173,7 @@ do_install() {
 		;;
 	
 		debian)
-			dist_version="$(cat /etc/debian_version | sed 's/\/.*//' | sed 's/\..*//')"
+			dist_version="$(< /etc/debian_version sed 's/\/.*//' | sed 's/\..*//')"
 			case "$dist_version" in
 				8)
 					dist_version="jessie"
@@ -313,17 +305,14 @@ do_install() {
 
 	# intentionally mixed spaces and tabs here -- tabs are stripped by "<<-'EOF'", spaces are kept in the output
 	cat >&2 <<-'EOF'
-
 		Either your platform is not easily detectable, is not supported by this
 		installer script, or does not yet have a package for Docker. Please visit
 		the following URL for more detailed installation instructions:
 		
 		https://docs.docker.com/docker-trusted-registry/cs-engine/install/
-
 	EOF
 	exit 1
 }
 
 do_install
-
 
